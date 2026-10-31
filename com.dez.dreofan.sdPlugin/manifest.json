@@ -1,0 +1,123 @@
+{
+  "$schema": "https://schemas.elgato.com/streamdeck/plugins/manifest.json",
+  "Name": "Dreo Fan Control",
+  "Version": "1.0.0.0",
+  "Author": "Dez",
+  "Description": "Control your Dreo smart fans: power, speed up/down or a set speed, oscillation, and aim presets that point the fan at a saved horizontal and vertical angle.",
+  "Category": "Dreo Fan Control",
+  "CategoryIcon": "imgs/plugin/category-icon",
+  "Icon": "imgs/plugin/marketplace",
+  "CodePath": "bin/plugin.js",
+  "SDKVersion": 2,
+  "Software": {
+    "MinimumVersion": "6.6"
+  },
+  "OS": [
+    {
+      "Platform": "windows",
+      "MinimumVersion": "10"
+    },
+    {
+      "Platform": "mac",
+      "MinimumVersion": "12"
+    }
+  ],
+  "Nodejs": {
+    "Version": "20"
+  },
+  "UUID": "com.dez.dreofan",
+  "Actions": [
+    {
+      "Name": "Power",
+      "UUID": "com.dez.dreofan.power",
+      "Icon": "imgs/actions/power/icon",
+      "Tooltip": "Turn a Dreo fan on or off.",
+      "PropertyInspectorPath": "ui/fan.html",
+      "Controllers": [
+        "Keypad"
+      ],
+      "SupportedInMultiActions": true,
+      "States": [
+        {
+          "Image": "imgs/actions/power/key",
+          "ShowTitle": false
+        }
+      ]
+    },
+    {
+      "Name": "Speed",
+      "UUID": "com.dez.dreofan.speed",
+      "Icon": "imgs/actions/speed/icon",
+      "Tooltip": "Speed up, speed down, or jump to a set speed.",
+      "PropertyInspectorPath": "ui/fan.html",
+      "Controllers": [
+        "Keypad"
+      ],
+      "SupportedInMultiActions": true,
+      "States": [
+        {
+          "Image": "imgs/actions/speed/key",
+          "ShowTitle": false
+        }
+      ]
+    },
+    {
+      "Name": "Aim",
+      "UUID": "com.dez.dreofan.aim",
+      "Icon": "imgs/actions/aim/icon",
+      "Tooltip": "Point the fan at a saved horizontal / vertical angle, or nudge it left, right, up or down.",
+      "PropertyInspectorPath": "ui/fan.html",
+      "Controllers": [
+        "Keypad"
+      ],
+      "SupportedInMultiActions": true,
+      "States": [
+        {
+          "Image": "imgs/actions/aim/key",
+          "ShowTitle": false
+        }
+      ]
+    },
+    {
+      "Name": "Oscillate",
+      "UUID": "com.dez.dreofan.oscillate",
+      "Icon": "imgs/actions/oscillate/icon",
+      "Tooltip": "Turn horizontal and/or vertical oscillation on or off.",
+      "PropertyInspectorPath": "ui/fan.html",
+      "Controllers": [
+        "Keypad"
+      ],
+      "SupportedInMultiActions": true,
+      "States": [
+        {
+          "Image": "imgs/actions/oscillate/key",
+          "ShowTitle": false
+        }
+      ]
+    },
+    {
+      "Name": "Fan Dial",
+      "UUID": "com.dez.dreofan.dial",
+      "Icon": "imgs/actions/dial/icon",
+      "Tooltip": "Stream Deck +: turn for speed (or aim), push for power.",
+      "PropertyInspectorPath": "ui/fan.html",
+      "Controllers": [
+        "Encoder"
+      ],
+      "Encoder": {
+        "layout": "$B1",
+        "TriggerDescription": {
+          "Rotate": "Speed / aim",
+          "Push": "Power on/off",
+          "Touch": "Power on/off"
+        }
+      },
+      "SupportedInMultiActions": false,
+      "States": [
+        {
+          "Image": "imgs/actions/dial/key"
+        }
+      ]
+    }
+  ]
+}

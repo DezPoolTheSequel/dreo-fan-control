@@ -1,0 +1,27 @@
+{
+  "name": "dreo-fan-control",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Stream Deck plugin: control Dreo smart fans — power, speed, oscillation and aim (horizontal/vertical angle presets).",
+  "scripts": {
+    "build": "node build.mjs",
+    "watch": "node build.mjs --watch",
+    "typecheck": "tsc --noEmit -p .",
+    "icons": "node tools/icons.mjs",
+    "test:render": "node tools/harness.mjs",
+    "pack": "node build.mjs && streamdeck pack com.dez.dreofan.sdPlugin --output dist --force"
+  },
+  "dependencies": {
+    "@elgato/streamdeck": "^3.0.4",
+    "ws": "^8.22.0"
+  },
+  "devDependencies": {
+    "@elgato/cli": "^1.10.4",
+    "@resvg/resvg-js": "^2.6.2",
+    "@types/node": "^26.6.6",
+    "@types/ws": "^8.18.2",
+    "esbuild": "^0.28.2",
+    "typescript": "^7.0.2"
+  }
+}

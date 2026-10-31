@@ -1,0 +1,390 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Dreo Fan Control</title>
+<style>
+  :root {
+    --bg: #2d2d2d; --field: #3d3d3d; --field-hi: #464646; --text: #d8d8d8; --muted: #969696;
+    --accent: #0078ff; --ok: #3ddc84; --bad: #ff6b6b; --line: #3a3a3a;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; background: var(--bg); color: var(--text); font: 9pt "Segoe UI", system-ui, sans-serif; }
+  body { padding: 4px 14px 16px 6px; }
+  .row { display: flex; align-items: center; min-height: 30px; margin: 3px 0; }
+  .row > label:first-child { flex: 0 0 104px; text-align: right; padding-right: 10px; color: var(--muted); }
+  .row > .ctl { flex: 1; display: flex; align-items: center; gap: 6px; min-width: 0; }
+  select, input[type=text], input[type=password], input[type=email], input[type=number] {
+    width: 100%; height: 26px; background: var(--field); color: var(--text); border: 0; border-radius: 3px;
+    padding: 0 6px; font: inherit; outline: none; min-width: 0;
+  }
+  select:focus, input:focus { background: var(--field-hi); }
+  input[type=checkbox] { accent-color: var(--accent); width: 15px; height: 15px; margin: 0; }
+  button {
+    height: 26px; min-width: 30px; background: var(--field); color: var(--text); border: 0; border-radius: 3px;
+    font: inherit; cursor: pointer; padding: 0 8px; white-space: nowrap;
+  }
+  button:hover { background: var(--field-hi); }
+  button.primary { background: var(--accent); color: #fff; }
+  .hint { margin: -1px 0 6px 114px; color: var(--muted); font-size: 8pt; line-height: 1.35; }
+  .status { margin: 2px 0 8px 114px; font-size: 8pt; line-height: 1.35; color: var(--muted); }
+  .status.ok { color: var(--ok); } .status.bad { color: var(--bad); }
+  .section { border-top: 1px solid var(--line); margin-top: 8px; padding-top: 4px; }
+  .section-title { padding: 6px 0 4px 14px; font-weight: 600; }
+  .hidden { display: none !important; }
+  .unit { color: var(--muted); flex: 0 0 auto; }
+  .btnrow { display: flex; gap: 6px; margin: 2px 0 6px 114px; flex-wrap: wrap; }
+</style>
+</head>
+<body>
+
+<!-- ======================= ACCOUNT ======================= -->
+<div class="section-title">Dreo account</div>
+<div id="signedIn" class="hidden">
+  <div class="row">
+    <label>Signed in as</label>
+    <div class="ctl"><span id="whoami" style="overflow:hidden;text-overflow:ellipsis"></span><button id="btnSignOut" style="margin-left:auto">Sign out</button></div>
+  </div>
+</div>
+<div id="signedOut">
+  <div class="row">
+    <label>Email</label>
+    <div class="ctl"><input type="email" id="email" placeholder="the one you use in the Dreo app" spellcheck="false" /></div>
+  </div>
+  <div class="row">
+    <label>Password</label>
+    <div class="ctl"><input type="password" id="password" placeholder="Dreo app password" /><button id="btnShow" title="Show / hide">👁</button></div>
+  </div>
+  <div class="btnrow"><button id="btnSignIn" class="primary">Sign in</button></div>
+  <div class="hint">You only need to do this once; every key shares it. Only a hash of the password is kept, in the plugin's global settings, so it's never included in an exported profile.</div>
+</div>
+<div class="status" id="acctStatus">Waiting for plugin…</div>
+
+<!-- ======================= FAN ======================= -->
+<div class="section">
+  <div class="section-title">Fan</div>
+  <div class="row">
+    <label>Fan</label>
+    <div class="ctl">
+      <select id="fan"><option value="">Sign in to list your fans</option></select>
+      <button id="btnRefresh" title="Reload fans from Dreo">⟳</button>
+    </div>
+  </div>
+  <div class="status" id="live"></div>
+  <div class="row">
+    <label>Name on key</label>
+    <div class="ctl"><input type="text" data-key="label" id="label" placeholder="blank = name from the Dreo app" spellcheck="false" /></div>
+  </div>
+  <div class="row">
+    <label>Show name</label>
+    <div class="ctl"><input type="checkbox" data-key="showLabel" /></div>
+  </div>
+</div>
+
+<!-- ======================= POWER ======================= -->
+<div class="section hidden" data-for="power">
+  <div class="section-title">Power</div>
+  <div class="row">
+    <label>Press to</label>
+    <div class="ctl">
+      <select data-key="mode">
+        <option value="toggle">Toggle on / off</option>
+        <option value="on">Turn on</option>
+        <option value="off">Turn off</option>
+      </select>
+    </div>
+  </div>
+</div>
+
+<!-- ======================= SPEED ======================= -->
+<div class="section hidden" data-for="speed">
+  <div class="section-title">Speed</div>
+  <div class="row">
+    <label>Press to</label>
+    <div class="ctl">
+      <select data-key="speedMode" id="speedMode">
+        <option value="up">Speed up</option>
+        <option value="down">Speed down</option>
+        <option value="set">Set a speed</option>
+      </select>
+    </div>
+  </div>
+  <div class="row" id="rowSpeed">
+    <label>Speed</label>
+    <div class="ctl"><input type="number" data-key="speed" min="1" step="1" /><span class="unit" id="speedRange"></span></div>
+  </div>
+  <div class="row" id="rowStep">
+    <label>Step</label>
+    <div class="ctl"><input type="number" data-key="step" min="1" step="1" /><span class="unit">per press</span></div>
+  </div>
+  <div class="row" id="rowAutoOn">
+    <label>If fan is off</label>
+    <div class="ctl"><input type="checkbox" data-key="autoOn" id="autoOn" /><label for="autoOn" style="color:var(--muted)">Speed up turns it on</label></div>
+  </div>
+  <div class="hint" id="setHint">Set a speed always turns the fan on.</div>
+</div>
+
+<!-- ======================= AIM ======================= -->
+<div class="section hidden" data-for="aim">
+  <div class="section-title">Aim</div>
+  <div class="row">
+    <label>Press to</label>
+    <div class="ctl">
+      <select data-key="aimMode" id="aimMode">
+        <option value="preset">Go to a position</option>
+        <option value="nudge">Nudge in a direction</option>
+      </select>
+    </div>
+  </div>
+  <div id="aimPreset">
+    <div class="row">
+      <label>Quick pick</label>
+      <div class="ctl">
+        <select id="quick">
+          <option value="">Choose a preset…</option>
+          <option value="0,0,Center">Center</option>
+          <option value="-30,0,Left">Left 30°</option>
+          <option value="30,0,Right">Right 30°</option>
+          <option value="-60,0,Far left">Left 60°</option>
+          <option value="60,0,Far right">Right 60°</option>
+          <option value="0,30,Up">Tilt up 30°</option>
+          <option value="0,60,Up high">Tilt up 60°</option>
+          <option value="0,90,Ceiling">Straight up (ceiling)</option>
+          <option value="0,-20,Down">Tilt down</option>
+        </select>
+      </div>
+    </div>
+    <div class="row">
+      <label>Horizontal</label>
+      <div class="ctl"><input type="number" data-key="h" step="1" /><span class="unit" id="hRange">°</span></div>
+    </div>
+    <div class="row" id="rowV">
+      <label>Vertical</label>
+      <div class="ctl"><input type="number" data-key="v" step="1" /><span class="unit" id="vRange">°</span></div>
+    </div>
+    <div class="btnrow"><button id="btnCapture">⌖ Use where the fan points now</button></div>
+    <div class="hint">Tip: aim the fan with the Dreo app or the remote, then press the button above to save that spot. Turning oscillation off happens automatically.</div>
+    <div class="row">
+      <label>Preset name</label>
+      <div class="ctl"><input type="text" data-key="presetName" placeholder="optional, e.g. Desk" spellcheck="false" /></div>
+    </div>
+  </div>
+  <div id="aimNudge">
+    <div class="row">
+      <label>Direction</label>
+      <div class="ctl">
+        <select data-key="direction">
+          <option value="left">◀ Left</option>
+          <option value="right">▶ Right</option>
+          <option value="up">▲ Up</option>
+          <option value="down">▼ Down</option>
+        </select>
+      </div>
+    </div>
+    <div class="row">
+      <label>Amount</label>
+      <div class="ctl"><input type="number" data-key="nudge" min="1" step="1" /><span class="unit">° per press</span></div>
+    </div>
+  </div>
+  <div class="hint" id="aimSupport"></div>
+</div>
+
+<!-- ======================= OSCILLATE ======================= -->
+<div class="section hidden" data-for="oscillate">
+  <div class="section-title">Oscillate</div>
+  <div class="row">
+    <label>Direction</label>
+    <div class="ctl">
+      <select data-key="axis" id="axis">
+        <option value="h">↔ Side to side</option>
+        <option value="v">↕ Up and down</option>
+        <option value="both">Both</option>
+      </select>
+    </div>
+  </div>
+  <div class="row">
+    <label>Press to</label>
+    <div class="ctl">
+      <select data-key="mode">
+        <option value="toggle">Toggle on / off</option>
+        <option value="on">Turn on</option>
+        <option value="off">Turn off</option>
+      </select>
+    </div>
+  </div>
+</div>
+
+<!-- ======================= DIAL ======================= -->
+<div class="section hidden" data-for="dial">
+  <div class="section-title">Dial</div>
+  <div class="row">
+    <label>Turning</label>
+    <div class="ctl">
+      <select data-key="dialRotate">
+        <option value="speed">Changes speed</option>
+        <option value="h">Aims left / right (5° a click)</option>
+        <option value="v">Aims up / down (5° a click)</option>
+      </select>
+    </div>
+  </div>
+  <div class="hint">Push or tap the dial to turn the fan on or off.</div>
+</div>
+
+<div class="section">
+  <div class="btnrow" style="margin-top:6px"><button id="btnTest">▶ Test this key</button></div>
+</div>
+
+<script>
+  const $ = (s) => document.querySelector(s);
+  const $$ = (s) => [...document.querySelectorAll(s)];
+  const DEFAULTS = { fan: "", label: "", showLabel: true, mode: "toggle", speedMode: "up", speed: 3, step: 1, autoOn: true,
+    aimMode: "preset", h: 0, v: 0, presetName: "", direction: "left", nudge: 10, axis: "h", dialRotate: "speed" };
+
+  let ws, ctx, actionUUID, kind, settings = { ...DEFAULTS }, fans = [], live = null, acct = null;
+
+  window.connectElgatoStreamDeckSocket = (port, uuid, registerEvent, info, actionInfo) => {
+    ctx = uuid;
+    const ai = JSON.parse(actionInfo);
+    actionUUID = ai.action;
+    kind = actionUUID.split(".").pop();
+    $$("[data-for]").forEach((el) => el.classList.toggle("hidden", el.dataset.for !== kind));
+    settings = Object.assign({}, DEFAULTS, ai.payload.settings || {});
+    fillForm();
+
+    ws = new WebSocket("ws://127.0.0.1:" + port);
+    ws.onopen = () => {
+      ws.send(JSON.stringify({ event: registerEvent, uuid }));
+      sendToPlugin({ cmd: "hello" });
+    };
+    ws.onmessage = (e) => {
+      const msg = JSON.parse(e.data);
+      if (msg.event === "didReceiveSettings") {
+        settings = Object.assign({}, DEFAULTS, msg.payload.settings || {});
+        fillForm();
+      } else if (msg.event === "sendToPropertyInspector" && msg.payload && msg.payload.event === "state") {
+        acct = msg.payload.account;
+        fans = msg.payload.fans || [];
+        live = msg.payload.live;
+        renderState();
+      }
+    };
+  };
+
+  function send(o) { if (ws && ws.readyState === 1) ws.send(JSON.stringify(o)); }
+  function save() { send({ event: "setSettings", context: ctx, payload: settings }); }
+  function sendToPlugin(payload) { send({ event: "sendToPlugin", action: actionUUID, context: ctx, payload }); }
+
+  function fillForm() {
+    $$("[data-key]").forEach((el) => {
+      const v = settings[el.dataset.key];
+      if (el.type === "checkbox") el.checked = v === true || v === "true";
+      else el.value = v ?? "";
+    });
+    $("#fan").value = settings.fan;
+    updateVisibility();
+  }
+
+  function updateVisibility() {
+    const set = settings.speedMode === "set";
+    $("#rowSpeed").classList.toggle("hidden", !set);
+    $("#setHint").classList.toggle("hidden", !set);
+    $("#rowStep").classList.toggle("hidden", set);
+    $("#rowAutoOn").classList.toggle("hidden", settings.speedMode !== "up");
+    $("#aimPreset").classList.toggle("hidden", settings.aimMode !== "preset");
+    $("#aimNudge").classList.toggle("hidden", settings.aimMode !== "nudge");
+  }
+
+  const deg = (n) => (n > 0 ? "+" : "") + n + "°";
+
+  function renderState() {
+    if (!acct) return;
+    const signedIn = acct.state === "READY" || acct.state === "SIGNING_IN" || (acct.state === "ERROR" && acct.hasPassword && !acct.error.startsWith("Sign-in"));
+    $("#signedIn").classList.toggle("hidden", !signedIn);
+    $("#signedOut").classList.toggle("hidden", signedIn);
+    $("#whoami").textContent = acct.email;
+    if (!$("#email").value) $("#email").value = acct.email || "";
+    const st = $("#acctStatus");
+    if (acct.state === "READY") { st.textContent = `Connected — ${fans.length} fan${fans.length === 1 ? "" : "s"} found`; st.className = "status ok"; }
+    else if (acct.state === "SIGNING_IN") { st.textContent = "Signing in…"; st.className = "status"; }
+    else if (acct.state === "ERROR") { st.textContent = acct.error; st.className = "status bad"; }
+    else { st.textContent = "Not signed in"; st.className = "status bad"; }
+
+    // fan picker
+    const sel = $("#fan");
+    const opts = [`<option value="">${fans.length ? "Choose a fan…" : acct.state === "READY" ? "No Dreo fans on this account" : "Sign in to list your fans"}</option>`];
+    for (const f of fans) opts.push(`<option value="${esc(f.sn)}">${esc(f.name)} — ${esc(f.model)}${f.online ? "" : " (offline)"}</option>`);
+    if (settings.fan && !fans.some((f) => f.sn === settings.fan)) opts.push(`<option value="${esc(settings.fan)}">(saved fan not found)</option>`);
+    sel.innerHTML = opts.join("");
+    sel.value = settings.fan;
+
+    // live status + capability hints
+    const fan = fans.find((f) => f.sn === settings.fan);
+    const lv = $("#live");
+    if (!fan || !live) { lv.textContent = ""; }
+    else if (!live.online) { lv.textContent = "Fan is offline"; lv.className = "status bad"; }
+    else {
+      const bits = [live.on ? `ON, speed ${live.speed ?? "?"}${live.caps.speed ? "/" + live.caps.speed[1] : ""}` : "OFF"];
+      if (live.aim) bits.push(live.caps.aim === "fixedconf" ? `aimed ${deg(live.aim.h)} / ${deg(live.aim.v)}` : `aimed ${deg(live.aim.h)}`);
+      if (live.caps.osc) bits.push(live.osc.h || live.osc.v ? `oscillating ${[live.osc.h && "↔", live.osc.v && "↕"].filter(Boolean).join("")}` : "not oscillating");
+      lv.textContent = "Now: " + bits.join(" · ");
+      lv.className = "status ok";
+    }
+    const caps = live && live.caps;
+    if (caps) {
+      $("#speedRange").textContent = caps.speed ? `${caps.speed[0]}–${caps.speed[1]}` : "";
+      $("#hRange").textContent = `° (${caps.hRange[0]} to ${caps.hRange[1]})`;
+      $("#vRange").textContent = `° (${caps.vRange[0]} to ${caps.vRange[1]})`;
+      $("#rowV").classList.toggle("hidden", caps.aim === "hangleadj");
+      $("#btnCapture").disabled = !live.aim;
+      const sup = $("#aimSupport");
+      if (!caps.aim && !caps.nudge.h && !caps.nudge.v) sup.textContent = "This fan doesn't report an aim position, so Aim isn't available for it. Oscillate still works.";
+      else if (caps.aim === "hangleadj") sup.textContent = "This fan aims left/right only.";
+      else if (!caps.aim) sup.textContent = "This fan can only be nudged (5° steps), not sent to an exact position.";
+      else sup.textContent = "";
+      const axis = $("#axis");
+      axis.options[1].disabled = axis.options[2].disabled = !(caps.osc && caps.osc.vertical);
+    }
+  }
+
+  function esc(s) { return String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]); }
+
+  $$("[data-key]").forEach((el) => {
+    el.addEventListener("change", () => {
+      settings[el.dataset.key] = el.type === "checkbox" ? el.checked : el.type === "number" ? Number(el.value) : el.value;
+      if (el.dataset.key === "h" || el.dataset.key === "v") $("#quick").value = "";
+      updateVisibility();
+      save();
+    });
+  });
+
+  $("#fan").addEventListener("change", (e) => { settings.fan = e.target.value; save(); });
+  $("#btnRefresh").addEventListener("click", () => sendToPlugin({ cmd: "refresh" }));
+  $("#btnTest").addEventListener("click", () => sendToPlugin({ cmd: "test" }));
+  $("#btnShow").addEventListener("click", () => { const f = $("#password"); f.type = f.type === "password" ? "text" : "password"; });
+  const signIn = () => {
+    const email = $("#email").value.trim(), password = $("#password").value;
+    if (!email || !password) { $("#acctStatus").textContent = "Enter your email and password"; $("#acctStatus").className = "status bad"; return; }
+    $("#acctStatus").textContent = "Signing in…"; $("#acctStatus").className = "status";
+    sendToPlugin({ cmd: "signin", email, password });
+    $("#password").value = "";
+  };
+  $("#btnSignIn").addEventListener("click", signIn);
+  $("#password").addEventListener("keydown", (e) => { if (e.key === "Enter") signIn(); });
+  $("#btnSignOut").addEventListener("click", () => sendToPlugin({ cmd: "signout" }));
+
+  $("#quick").addEventListener("change", (e) => {
+    if (!e.target.value) return;
+    const [h, v, name] = e.target.value.split(",");
+    settings.h = Number(h); settings.v = Number(v); settings.presetName = name;
+    fillForm(); save();
+    e.target.value = e.target.value; // keep showing the choice
+  });
+  $("#btnCapture").addEventListener("click", () => {
+    if (!live || !live.aim) return;
+    settings.h = live.aim.h; settings.v = live.aim.v;
+    $("#quick").value = "";
+    fillForm(); save();
+  });
+</script>
+</body>
+</html>
