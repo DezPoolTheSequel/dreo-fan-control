@@ -1,6 +1,6 @@
 {
   "name": "dreo-fan-control",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "private": true,
   "type": "module",
   "description": "Stream Deck plugin: control Dreo smart fans — power, speed, oscillation and aim (horizontal/vertical angle presets).",

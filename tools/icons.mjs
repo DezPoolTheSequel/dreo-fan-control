@@ -32,7 +32,7 @@ png(glyphs.category, 56, `${out}/plugin/category-icon@2x.png`);
 for (const a of ["power", "speed", "aim", "oscillate", "dial"]) both(glyphs[a], 20, `${out}/actions/${a}/icon`);
 
 // Default key images (what a key shows before it's set up / in the action list preview)
-const view = { label: "Dreo", showLabel: true };
+const view = { label: "Dreo", showLabel: true, theme: R.THEMES.on };
 const keys = {
 	power: R.renderPower(view, true, 5, 9, "toggle"),
 	speed: R.renderSpeed(view, true, 5, 9, "up", 5),
@@ -43,5 +43,5 @@ const keys = {
 for (const [a, svg] of Object.entries(keys)) both(svg, 72, `${out}/actions/${a}/key`);
 
 // Marketplace / plugin icon
-both(R.renderPower({ label: "", showLabel: false }, true, null, null, "toggle"), 288, `${out}/plugin/marketplace`);
+both(R.renderPower({ label: "", showLabel: false, theme: R.THEMES.on }, true, null, null, "toggle"), 288, `${out}/plugin/marketplace`);
 console.log("icons ok");

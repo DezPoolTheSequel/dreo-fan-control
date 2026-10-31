@@ -4,6 +4,8 @@ import type { JsonObject } from "@elgato/utils";
 export type GlobalSettings = {
 	email?: string;
 	passwordHash?: string;
+	/** fan serial → colour preset id, shared by every key for that fan */
+	fanColors?: Record<string, string>;
 };
 
 export type ActionKind = "power" | "speed" | "aim" | "oscillate" | "dial";

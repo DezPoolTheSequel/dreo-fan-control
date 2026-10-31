@@ -18,7 +18,7 @@ import streamDeck, {
 import type { JsonObject, JsonValue } from "@elgato/utils";
 import { aimAt, aimOf, canNudge, isOn, nudge, oscOf, setPower, setSpeed, speedOf, stepSpeed, toggleOsc, setOsc } from "./control.js";
 import { cloud, hashPassword, type Fan } from "./dreo.js";
-import { renderAim, renderMessage, renderNudge, renderOsc, renderPower, renderSpeed, THEMES, toDataUrl, type View } from "./render.js";
+import { colorFor, COLORS, renderAim, renderMessage, renderNudge, renderOsc, renderPower, renderSpeed, THEMES, toDataUrl, type View } from "./render.js";
 import { resolveSettings, type ActionSettings, type GlobalSettings } from "./settings.js";
 
 const log = () => streamDeck.logger.createScope("dreo");
@@ -26,26 +26,43 @@ const log = () => streamDeck.logger.createScope("dreo");
 // ---------------------------------------------------------------- account
 
 let account: GlobalSettings = {};
+/** Keys redraw when a fan's colour changes, since that colour is shared by every key for the fan. */
+const colorListeners = new Set<() => void>();
 
 export function setAccount(g: Partial<GlobalSettings> | undefined): void {
-	account = { email: String(g?.email ?? ""), passwordHash: String(g?.passwordHash ?? "") };
+	const colors = g?.fanColors && typeof g.fanColors === "object" ? { ...g.fanColors } : {};
+	const changed = JSON.stringify(colors) !== JSON.stringify(account.fanColors ?? {});
+	account = { email: String(g?.email ?? ""), passwordHash: String(g?.passwordHash ?? ""), fanColors: colors };
 	cloud.configure(account.email!, account.passwordHash!);
+	if (changed) for (const fn of colorListeners) fn();
 }
+
+const saveGlobals = () => streamDeck.settings.setGlobalSettings(account as JsonObject);
 
 async function signIn(email: string, password: string): Promise<void> {
 	// Keep the stored hash if the PI sends a blank password (user only edited the email).
 	const passwordHash = password ? hashPassword(password) : (account.passwordHash ?? "");
-	account = { email: email.trim(), passwordHash };
-	await streamDeck.settings.setGlobalSettings(account as JsonObject);
+	account = { ...account, email: email.trim(), passwordHash };
+	await saveGlobals();
 	cloud.configure(account.email!, passwordHash);
 	void cloud.signIn();
 }
 
 async function signOut(): Promise<void> {
-	account = {};
-	await streamDeck.settings.setGlobalSettings({});
+	// Fan colours aren't part of the login, so they stay.
+	account = { fanColors: account.fanColors };
+	await saveGlobals();
 	cloud.configure("", "");
 }
+
+async function setFanColor(sn: string, color: string): Promise<void> {
+	if (!sn || !COLORS[color]) return;
+	account = { ...account, fanColors: { ...account.fanColors, [sn]: color } };
+	await saveGlobals();
+	for (const fn of colorListeners) fn();
+}
+
+export const fanTheme = (sn: string) => colorFor(account.fanColors?.[sn]);
 
 // ---------------------------------------------------------------- shared base
 
@@ -69,6 +86,7 @@ abstract class FanAction extends SingletonAction<JsonObject> {
 			for (const it of this.items.values()) if (it.settings.fan === fan.sn) void this.redraw(it);
 		});
 		for (const ev of ["account", "devices"]) cloud.on(ev, () => this.redrawAll());
+		colorListeners.add(() => this.redrawAll());
 	}
 
 	override async onWillAppear(ev: WillAppearEvent<JsonObject>): Promise<void> {
@@ -117,6 +135,7 @@ abstract class FanAction extends SingletonAction<JsonObject> {
 		if (msg.cmd === "signin") await signIn(msg.email ?? "", msg.password ?? "");
 		else if (msg.cmd === "signout") await signOut();
 		else if (msg.cmd === "refresh") await cloud.refresh();
+		else if (msg.cmd === "color") await setFanColor(msg.fan ?? "", msg.color ?? "");
 		else if (msg.cmd === "test" && it) {
 			const fan = this.fanFor(it);
 			if (!fan || !this.press(it, fan)) await it.action.showAlert();
@@ -157,7 +176,7 @@ abstract class FanAction extends SingletonAction<JsonObject> {
 
 	private keyImage(it: Instance): string {
 		const fan = cloud.fans.get(it.settings.fan);
-		const view: View = { label: it.settings.label || fan?.name || "Dreo", showLabel: it.settings.showLabel };
+		const view: View = { label: it.settings.label || fan?.name || "Dreo", showLabel: it.settings.showLabel, theme: fanTheme(it.settings.fan) };
 		if (cloud.state === "SIGNED_OUT") return renderMessage(view, "SIGN IN", "in key settings", THEMES.warn);
 		if (cloud.state === "SIGNING_IN" && !fan) return renderMessage(view, "CONNECTING", "to Dreo…");
 		if (cloud.state === "ERROR") return renderMessage(view, "DREO ERROR", cloud.error.startsWith("Sign-in") ? "check login" : "retrying…", THEMES.warn);
@@ -181,6 +200,8 @@ abstract class FanAction extends SingletonAction<JsonObject> {
 				account: { state: cloud.state, error: cloud.error, email: account.email ?? "", hasPassword: !!account.passwordHash },
 				fans: cloud.summaries(),
 				live,
+				color: account.fanColors?.[it.settings.fan] ?? "blue",
+				colors: Object.entries(COLORS).map(([id, c]) => ({ id, name: c.name, accent: c.accent, bg: c.bg1 })),
 			} as unknown as JsonValue);
 		} catch {
 			/* PI closed */
@@ -307,7 +328,7 @@ export class FanDial extends FanAction {
 		const title = it.settings.label || fan?.name || "Dreo Fan";
 		let value: string;
 		let indicator = 0;
-		let color = "#5CC8F2";
+		let color = fanTheme(it.settings.fan).accent;
 		if (cloud.state !== "READY") value = cloud.state === "SIGNED_OUT" ? "Sign in" : cloud.state === "ERROR" ? "Error" : "…";
 		else if (!fan) value = it.settings.fan ? "Not found" : "Pick a fan";
 		else if (!fan.online) value = "Offline";

@@ -202,6 +202,19 @@ async function run() {
 	check("PI gets live aim", pi?.live?.aim?.h === -30 && pi?.live?.aim?.v === 20, JSON.stringify(pi?.live?.aim));
 	check("ranges from controlsConf", JSON.stringify(pi?.live?.caps?.hRange) === "[-75,75]" && JSON.stringify(pi?.live?.caps?.vRange) === "[-30,90]");
 
+	// Colour: set purple from ONE Desk Fan key → every Desk Fan key turns purple, tower keys don't
+	send({ action: A("aim"), event: "sendToPlugin", context: "06-aim-left", payload: { cmd: "color", fan: "CIRC1", color: "purple" } });
+	send({ action: A("power"), event: "sendToPlugin", context: "02-power-off", payload: { cmd: "color", fan: "TOWER1", color: "orange" } });
+	await sleep(400);
+	const svgOf = (n) => decodeURIComponent(images[n] ?? "");
+	const circKeys = scenarios.filter(([, , st]) => st.fan === "CIRC1" && !st._dial).map(([n]) => n).filter((n) => n !== "15-dial");
+	const lit = circKeys.filter((n) => svgOf(n).includes("#B48CFF") || svgOf(n).includes("#2F2148"));
+	check("colour applies to every key of that fan", lit.length >= 5 && !svgOf("05-speed-set").includes("#B48CFF"), `${lit.length}/${circKeys.length} lit: ${lit.join(",")}`);
+	check("other fan keeps its own colour", svgOf("05-speed-set").includes("#FF9A4A"));
+	check("colours saved in global settings", globals.fanColors?.CIRC1 === "purple" && globals.fanColors?.TOWER1 === "orange", JSON.stringify(globals.fanColors));
+	check("dial uses fan colour", feedback["15-dial"]?.indicator?.bar_fill_c === "#B48CFF", JSON.stringify(feedback["15-dial"]?.indicator));
+	snap("colour", ["01-power-on", "03-speed-up", "06-aim-left", "08-nudge-right", "10-osc-v", "02-power-off", "05-speed-set", "11-osc-tower"]);
+
 	// Wrong password via PI → error state, no retry storm
 	send({ action: A("aim"), event: "sendToPlugin", context: "06-aim-left", payload: { cmd: "signin", email: EMAIL, password: "wrong" } });
 	await sleep(1500);
@@ -209,7 +222,7 @@ async function run() {
 	snap("bad-login", ["01-power-on"]);
 	send({ action: A("aim"), event: "sendToPlugin", context: "06-aim-left", payload: { cmd: "signout" } });
 	await sleep(300);
-	check("sign out clears globals", !globals.email);
+	check("sign out clears login but keeps colours", !globals.email && !globals.passwordHash && globals.fanColors?.CIRC1 === "purple");
 	snap("signed-out", ["01-power-on", "15-dial"]);
 	send({ action: A("aim"), event: "sendToPlugin", context: "06-aim-left", payload: { cmd: "signin", email: EMAIL, password: "hunter2" } });
 	await sleep(1500);

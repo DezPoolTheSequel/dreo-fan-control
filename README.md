@@ -17,6 +17,13 @@ key press. Each key shows the fan's live state.
 Every action works with **any of your fans**. Pick the fan in each key's settings, so with two fans
 you can set up one row per fan or put both on one key with a Multi Action.
 
+### Fan colours
+
+Each fan can have its own "on" colour: sky blue, teal, green, purple, pink, orange, red or gold.
+Pick it under **On colour** in any key's settings. The colour belongs to the fan, so every key for
+that fan (and its Stream Deck + dial) changes together, whichever key you set it from. Keys for a fan
+that's off, or for something that isn't active, stay grey.
+
 ### Aim presets
 
 In the Aim key's settings, choose **Go to a position** and then either:

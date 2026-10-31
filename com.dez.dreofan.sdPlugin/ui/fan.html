@@ -33,6 +33,11 @@
   .section-title { padding: 6px 0 4px 14px; font-weight: 600; }
   .hidden { display: none !important; }
   .unit { color: var(--muted); flex: 0 0 auto; }
+  .swatches { display: flex; gap: 6px; flex-wrap: wrap; }
+  .swatch { width: 24px; height: 24px; min-width: 0; padding: 0; border-radius: 6px; border: 2px solid transparent; position: relative; }
+  .swatch::after { content: ""; position: absolute; inset: 6px; border-radius: 50%; background: var(--dot); }
+  .swatch.sel { border-color: #fff; }
+  .swatch:disabled { opacity: 0.35; cursor: default; }
   .btnrow { display: flex; gap: 6px; margin: 2px 0 6px 114px; flex-wrap: wrap; }
 </style>
 </head>
@@ -71,6 +76,11 @@
     </div>
   </div>
   <div class="status" id="live"></div>
+  <div class="row">
+    <label>On colour</label>
+    <div class="ctl swatches" id="swatches"></div>
+  </div>
+  <div class="hint" id="colorHint">Shared by every key for this fan. Change it here and all of them follow.</div>
   <div class="row">
     <label>Name on key</label>
     <div class="ctl"><input type="text" data-key="label" id="label" placeholder="blank = name from the Dreo app" spellcheck="false" /></div>
@@ -240,7 +250,7 @@
   const DEFAULTS = { fan: "", label: "", showLabel: true, mode: "toggle", speedMode: "up", speed: 3, step: 1, autoOn: true,
     aimMode: "preset", h: 0, v: 0, presetName: "", direction: "left", nudge: 10, axis: "h", dialRotate: "speed" };
 
-  let ws, ctx, actionUUID, kind, settings = { ...DEFAULTS }, fans = [], live = null, acct = null;
+  let ws, ctx, actionUUID, kind, settings = { ...DEFAULTS }, fans = [], live = null, acct = null, color = "blue", colors = [];
 
   window.connectElgatoStreamDeckSocket = (port, uuid, registerEvent, info, actionInfo) => {
     ctx = uuid;
@@ -265,6 +275,8 @@
         acct = msg.payload.account;
         fans = msg.payload.fans || [];
         live = msg.payload.live;
+        color = msg.payload.color || "blue";
+        colors = msg.payload.colors || [];
         renderState();
       }
     };
@@ -317,6 +329,14 @@
     sel.innerHTML = opts.join("");
     sel.value = settings.fan;
 
+    // per-fan colour
+    const fanName = (fans.find((f) => f.sn === settings.fan) || {}).name;
+    $("#swatches").innerHTML = colors.map((c) =>
+      `<button class="swatch${c.id === color ? " sel" : ""}" data-color="${esc(c.id)}" title="${esc(c.name)}" style="background:${c.bg};--dot:${c.accent}"${settings.fan ? "" : " disabled"}></button>`).join("");
+    $("#colorHint").textContent = settings.fan
+      ? `Shared by every key for ${fanName || "this fan"}. Change it here and all of them follow.`
+      : "Pick a fan first. The colour is shared by every key for that fan.";
+
     // live status + capability hints
     const fan = fans.find((f) => f.sn === settings.fan);
     const lv = $("#live");
@@ -358,6 +378,13 @@
   });
 
   $("#fan").addEventListener("change", (e) => { settings.fan = e.target.value; save(); });
+  $("#swatches").addEventListener("click", (e) => {
+    const b = e.target.closest(".swatch");
+    if (!b || b.disabled || !settings.fan) return;
+    color = b.dataset.color;
+    $$(".swatch").forEach((x) => x.classList.toggle("sel", x === b));
+    sendToPlugin({ cmd: "color", fan: settings.fan, color });
+  });
   $("#btnRefresh").addEventListener("click", () => sendToPlugin({ cmd: "refresh" }));
   $("#btnTest").addEventListener("click", () => sendToPlugin({ cmd: "test" }));
   $("#btnShow").addEventListener("click", () => { const f = $("#password"); f.type = f.type === "password" ? "text" : "password"; });
