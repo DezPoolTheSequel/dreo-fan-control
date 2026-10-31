@@ -81,14 +81,15 @@
     <div class="ctl swatches" id="swatches"></div>
   </div>
   <div class="hint" id="colorHint">Shared by every key for this fan. Change it here and all of them follow.</div>
-  <div class="row">
+  <div class="row nameRow">
     <label>Name on key</label>
     <div class="ctl"><input type="text" data-key="label" id="label" placeholder="blank = name from the Dreo app" spellcheck="false" /></div>
   </div>
-  <div class="row">
+  <div class="row nameRow">
     <label>Show name</label>
     <div class="ctl"><input type="checkbox" data-key="showLabel" /></div>
   </div>
+  <div class="hint hidden" id="nameHint">This dial switches fans, so the touch strip always shows each fan's name from the Dreo app.</div>
 </div>
 
 <!-- ======================= POWER ======================= -->
@@ -322,6 +323,9 @@
     $("#rowAutoOn").classList.toggle("hidden", settings.speedMode !== "up");
     $("#aimPreset").classList.toggle("hidden", settings.aimMode !== "preset");
     $("#aimNudge").classList.toggle("hidden", settings.aimMode !== "nudge");
+    const cycling = kind === "dial" && (settings.dialPush === "next" || settings.dialTouch === "next");
+    $$(".nameRow").forEach((el) => el.classList.toggle("hidden", cycling));
+    $("#nameHint").classList.toggle("hidden", !cycling);
   }
 
   const deg = (n) => (n > 0 ? "+" : "") + n + "°";

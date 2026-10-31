@@ -218,6 +218,7 @@ async function run() {
 	check("touch can be set to power", controls.length === b6 + 1 && "poweron" in controls.at(-1), JSON.stringify(controls.at(-1)));
 	dialEv("16-dial-push-next", "touchTap"); // Desk Fan back on for the colour checks
 	await sleep(300);
+	check("dial value is just the speed number", /^\d+\/\d+$/.test(feedback["16-dial-push-next"]?.value ?? ""), feedback["16-dial-push-next"]?.value);
 	check("trigger descriptions follow settings", triggers["16-dial-push-next"]?.push === "Next fan" && triggers["16-dial-push-next"]?.touch === "Power on/off" && triggers["15-dial"]?.touch === "Next fan", JSON.stringify(triggers));
 
 	// Offline fan press should alert, not send

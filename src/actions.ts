@@ -368,6 +368,8 @@ export class FanDial extends FanAction {
 		let title = (cycling ? "" : it.settings.label) || fan?.name || "Dreo Fan";
 		const fans = this.cycle();
 		if (cycling && fan && fans.length > 1) title += `  ${fans.findIndex((f) => f.sn === fan.sn) + 1}/${fans.length}`;
+		// The name can only be hidden on a dial that stays on one fan; a switching dial needs it to show which fan it's on.
+		if (!cycling && !it.settings.showLabel) title = "";
 		const theme = fanTheme(it.settings.fan);
 		let value: string;
 		let indicator = 0;
@@ -383,7 +385,7 @@ export class FanDial extends FanAction {
 			const r = it.settings.dialRotate;
 			const aim = aimOf(fan);
 			if (r === "speed" || !aim) {
-				value = on ? `Speed ${speed ?? "?"}/${max}` : "Off";
+				value = on ? `${speed ?? "?"}/${max}` : "Off";
 				indicator = on && speed ? Math.round((speed / max) * 100) : 0;
 			} else {
 				const [lo, hi] = r === "h" ? fan.caps.hRange : fan.caps.vRange;
