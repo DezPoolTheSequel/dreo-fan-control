@@ -12,10 +12,23 @@ key press. Each key shows the fan's live state.
 | **Speed** | Speed up, speed down (step size you choose), or set an exact speed | Current speed and a bar with one segment per level |
 | **Aim** | Go to a position (horizontal + vertical angle), or nudge left / right / up / down by N° | A map of the fan's range: the dot is the target, the ring is where it points now. The key lights up when the fan is there. |
 | **Oscillate** | Toggle / on / off for side-to-side, up-and-down, or both | Sweep arrows, lit while oscillating |
-| **Fan Dial** (Stream Deck +) | Turn for speed (or to aim left/right or up/down 5° a click), push or tap for power | Speed or angle on the touch strip |
+| **Fan Dial** (Stream Deck +) | Turn right = faster, left = slower (or aim 5° a click). Push and touch each do whichever you choose: **toggle on/off** or **switch to the next fan** | Fan name, speed and a fan icon in the fan's colour on the touch strip |
 
 Every action works with **any of your fans**. Pick the fan in each key's settings, so with two fans
 you can set up one row per fan or put both on one key with a Multi Action.
+
+### Fan Dial (Stream Deck +)
+
+Drag **Fan Dial** onto a dial. Stream Deck only offers it on dials, and the key actions only on keys,
+so it's all one plugin.
+
+- **Turn:** right speeds up, left slows down. Turning right on a fan that's off switches it on. You
+  can also set turning to aim the fan left/right or up/down instead.
+- **Push** and **Touch:** each one can be **Toggle on / off** or **Switch to next fan**. The default
+  is push = power, touch = next fan.
+- **Next fan** goes through every fan on your account in name order and wraps around. The touch strip
+  shows which one the dial is on (`Tall Fan  1/2`) in that fan's colour, and the dial remembers
+  its fan after a restart.
 
 ### Fan colours
 

@@ -1,7 +1,7 @@
 {
   "$schema": "https://schemas.elgato.com/streamdeck/plugins/manifest.json",
   "Name": "Dreo Fan Control",
-  "Version": "1.1.0.0",
+  "Version": "1.2.0.0",
   "Author": "Dez",
   "Description": "Control your Dreo smart fans: power, speed up/down or a set speed, oscillation, and aim presets that point the fan at a saved horizontal and vertical angle.",
   "Category": "Dreo Fan Control",
@@ -99,7 +99,7 @@
       "Name": "Fan Dial",
       "UUID": "com.dez.dreofan.dial",
       "Icon": "imgs/actions/dial/icon",
-      "Tooltip": "Stream Deck +: turn for speed (or aim), push for power.",
+      "Tooltip": "Stream Deck +: turn for speed (or aim). Push and touch each toggle power or switch to the next fan.",
       "PropertyInspectorPath": "ui/fan.html",
       "Controllers": [
         "Encoder"
@@ -108,8 +108,8 @@
         "layout": "$B1",
         "TriggerDescription": {
           "Rotate": "Speed / aim",
-          "Push": "Power on/off",
-          "Touch": "Power on/off"
+          "Push": "Power on/off or next fan",
+          "Touch": "Power on/off or next fan"
         }
       },
       "SupportedInMultiActions": false,

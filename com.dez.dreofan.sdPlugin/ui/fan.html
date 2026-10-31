@@ -237,7 +237,25 @@
       </select>
     </div>
   </div>
-  <div class="hint">Push or tap the dial to turn the fan on or off.</div>
+  <div class="row">
+    <label>Push</label>
+    <div class="ctl">
+      <select data-key="dialPush">
+        <option value="power">Toggle on / off</option>
+        <option value="next">Switch to next fan</option>
+      </select>
+    </div>
+  </div>
+  <div class="row">
+    <label>Touch</label>
+    <div class="ctl">
+      <select data-key="dialTouch">
+        <option value="power">Toggle on / off</option>
+        <option value="next">Switch to next fan</option>
+      </select>
+    </div>
+  </div>
+  <div class="hint" id="dialHint">Next fan goes through every fan on your account in name order. The Fan picked above is where it starts, and it changes as you switch. The touch strip shows the fan's name and its own colour.</div>
 </div>
 
 <div class="section">
@@ -248,7 +266,7 @@
   const $ = (s) => document.querySelector(s);
   const $$ = (s) => [...document.querySelectorAll(s)];
   const DEFAULTS = { fan: "", label: "", showLabel: true, mode: "toggle", speedMode: "up", speed: 3, step: 1, autoOn: true,
-    aimMode: "preset", h: 0, v: 0, presetName: "", direction: "left", nudge: 10, axis: "h", dialRotate: "speed" };
+    aimMode: "preset", h: 0, v: 0, presetName: "", direction: "left", nudge: 10, axis: "h", dialRotate: "speed", dialPush: "power", dialTouch: "next" };
 
   let ws, ctx, actionUUID, kind, settings = { ...DEFAULTS }, fans = [], live = null, acct = null, color = "blue", colors = [];
 

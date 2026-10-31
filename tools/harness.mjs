@@ -94,6 +94,7 @@ const scenarios = [
 	["13-offline", A("power"), { fan: "OFF1" }],
 	["14-no-fan", A("power"), {}],
 	["15-dial", A("dial"), { fan: "CIRC1" }, "Encoder"],
+	["16-dial-push-next", A("dial"), { fan: "TOWER1", dialPush: "next", dialTouch: "power" }, "Encoder"],
 ];
 
 // ---------------------------------------------------------------- fake Stream Deck
@@ -101,6 +102,8 @@ const wss = new WebSocketServer({ port: SD_PORT });
 const images = {};
 const feedback = {};
 const toPI = [];
+const savedSettings = {};
+const triggers = {};
 const shots = [];
 let globals = { email: EMAIL, passwordHash: HASH };
 let sock;
@@ -124,6 +127,8 @@ wss.on("connection", (ws) => {
 		else if (m.event === "setFeedback") feedback[m.context] = { ...(feedback[m.context] ?? {}), ...m.payload };
 		else if (m.event === "sendToPropertyInspector") toPI.push(m.payload);
 		else if (m.event === "showAlert") console.log("ALERT on", m.context);
+		else if (m.event === "setSettings") savedSettings[m.context] = m.payload;
+		else if (m.event === "setTriggerDescription") triggers[m.context] = m.payload;
 	});
 });
 
@@ -186,6 +191,34 @@ async function run() {
 	await sleep(500);
 	const dc = controls.slice(b3);
 	check("dial coalesces ticks", dc.length === 1 && dc[0].windlevel === 9, JSON.stringify(dc));
+
+	// Dial push (default = power) toggles the Desk Fan; touch (default = next fan) switches fans
+	const dialEv = (ctx, event) => send({ action: A("dial"), event, context: ctx, device: "dev1", payload: { controller: "Encoder", coordinates: coords, settings: {}, tapPos: [0, 0], hold: false } });
+	dialEv("15-dial", "dialDown");
+	await sleep(300);
+	check("dial push toggles power by default", last("CIRC1")?.poweron === false, JSON.stringify(last("CIRC1")));
+	dialEv("15-dial", "dialDown");
+	await sleep(300);
+	const b5 = controls.length;
+	const seq = [];
+	for (let i = 0; i < 3; i++) {
+		dialEv("15-dial", "touchTap");
+		await sleep(150);
+		seq.push(`${savedSettings["15-dial"]?.fan}|${feedback["15-dial"]?.title}`);
+	}
+	check("dial touch cycles fans in name order and wraps", seq.map((x) => x.split("|")[0]).join(",") === "OFF1,TOWER1,CIRC1" && controls.length === b5, seq.join("  "));
+	check("cycling title shows position", /Desk Fan\s+2\/3/.test(feedback["15-dial"]?.title ?? ""), feedback["15-dial"]?.title);
+	check("touch strip icon in fan colour", decodeURIComponent(feedback["15-dial"]?.icon ?? "").includes("#5CC8F2"));
+	dialEv("16-dial-push-next", "dialDown");
+	await sleep(150);
+	check("push can be set to next fan", savedSettings["16-dial-push-next"]?.fan === "CIRC1", savedSettings["16-dial-push-next"]?.fan);
+	const b6 = controls.length;
+	dialEv("16-dial-push-next", "touchTap");
+	await sleep(300);
+	check("touch can be set to power", controls.length === b6 + 1 && "poweron" in controls.at(-1), JSON.stringify(controls.at(-1)));
+	dialEv("16-dial-push-next", "touchTap"); // Desk Fan back on for the colour checks
+	await sleep(300);
+	check("trigger descriptions follow settings", triggers["16-dial-push-next"]?.push === "Next fan" && triggers["16-dial-push-next"]?.touch === "Power on/off" && triggers["15-dial"]?.touch === "Next fan", JSON.stringify(triggers));
 
 	// Offline fan press should alert, not send
 	const b4 = controls.length;

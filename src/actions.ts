@@ -18,7 +18,7 @@ import streamDeck, {
 import type { JsonObject, JsonValue } from "@elgato/utils";
 import { aimAt, aimOf, canNudge, isOn, nudge, oscOf, setPower, setSpeed, speedOf, stepSpeed, toggleOsc, setOsc } from "./control.js";
 import { cloud, hashPassword, type Fan } from "./dreo.js";
-import { colorFor, COLORS, renderAim, renderMessage, renderNudge, renderOsc, renderPower, renderSpeed, THEMES, toDataUrl, type View } from "./render.js";
+import { colorFor, COLORS, fanGlyph, renderAim, renderMessage, renderNudge, renderOsc, renderPower, renderSpeed, THEMES, toDataUrl, type View } from "./render.js";
 import { resolveSettings, type ActionSettings, type GlobalSettings } from "./settings.js";
 
 const log = () => streamDeck.logger.createScope("dreo");
@@ -280,7 +280,8 @@ export class OscillateAction extends FanAction {
 	}
 }
 
-/** Stream Deck + dial: turn for speed (or aim), push or tap for power. */
+/** Stream Deck + dial: turn for speed (or aim). Push and touch each either toggle power or switch the
+ *  dial to the next fan on the account. */
 @action({ UUID: "com.dez.dreofan.dial" })
 export class FanDial extends FanAction {
 	protected press(_it: Instance, fan: Fan): boolean {
@@ -290,11 +291,20 @@ export class FanDial extends FanAction {
 		return renderPower(view, isOn(fan), speedOf(fan), fan.caps.speed?.[1] ?? null, "toggle");
 	}
 
+	override async onWillAppear(ev: WillAppearEvent<JsonObject>): Promise<void> {
+		await super.onWillAppear(ev);
+		await this.describeTriggers(ev.action.id);
+	}
+	override async onDidReceiveSettings(ev: DidReceiveSettingsEvent<JsonObject>): Promise<void> {
+		await super.onDidReceiveSettings(ev);
+		await this.describeTriggers(ev.action.id);
+	}
+
 	override async onDialDown(ev: DialDownEvent<JsonObject>): Promise<void> {
-		await this.togglePower(ev.action.id);
+		await this.trigger(ev.action.id, "push");
 	}
 	override async onTouchTap(ev: TouchTapEvent<JsonObject>): Promise<void> {
-		await this.togglePower(ev.action.id);
+		await this.trigger(ev.action.id, "touch");
 	}
 
 	override onDialRotate(ev: DialRotateEvent<JsonObject>): void {
@@ -316,24 +326,58 @@ export class FanDial extends FanAction {
 		}, 150);
 	}
 
-	private async togglePower(id: string): Promise<void> {
+	private async trigger(id: string, which: "push" | "touch"): Promise<void> {
 		const it = this.items.get(id);
 		if (!it) return;
+		if ((which === "push" ? it.settings.dialPush : it.settings.dialTouch) === "next") return this.nextFan(it);
 		const fan = this.fanFor(it);
 		if (!fan || !this.press(it, fan)) await it.action.showAlert();
 	}
 
+	/** Fans the dial cycles through: every fan on the account, in name order. */
+	private cycle(): Fan[] {
+		return [...cloud.fans.values()].sort((a, b) => a.name.localeCompare(b.name) || a.sn.localeCompare(b.sn));
+	}
+
+	private async nextFan(it: Instance): Promise<void> {
+		const fans = this.cycle();
+		if (cloud.state !== "READY" || fans.length === 0) return void (await it.action.showAlert());
+		const i = fans.findIndex((f) => f.sn === it.settings.fan);
+		it.settings = { ...it.settings, fan: fans[(i + 1) % fans.length].sn };
+		// Saved, so the dial remembers its fan and the settings panel shows the same one.
+		await it.action.setSettings(it.settings as unknown as JsonObject);
+		await this.redraw(it);
+		await this.sendToPI(it);
+	}
+
+	private async describeTriggers(id: string): Promise<void> {
+		const it = this.items.get(id);
+		if (!it || !it.action.isDial()) return;
+		const name = (m: "power" | "next") => (m === "next" ? "Next fan" : "Power on/off");
+		await it.action.setTriggerDescription({
+			rotate: it.settings.dialRotate === "speed" ? "Speed" : it.settings.dialRotate === "h" ? "Aim left/right" : "Aim up/down",
+			push: name(it.settings.dialPush),
+			touch: name(it.settings.dialTouch),
+		});
+	}
+
 	protected override async drawDial(it: Instance): Promise<void> {
 		const fan = cloud.fans.get(it.settings.fan);
-		const title = it.settings.label || fan?.name || "Dreo Fan";
+		const cycling = it.settings.dialPush === "next" || it.settings.dialTouch === "next";
+		// When the dial switches fans, a fixed name would be wrong, so show the fan's own name and its place in the list.
+		let title = (cycling ? "" : it.settings.label) || fan?.name || "Dreo Fan";
+		const fans = this.cycle();
+		if (cycling && fan && fans.length > 1) title += `  ${fans.findIndex((f) => f.sn === fan.sn) + 1}/${fans.length}`;
+		const theme = fanTheme(it.settings.fan);
 		let value: string;
 		let indicator = 0;
-		let color = fanTheme(it.settings.fan).accent;
+		let color = theme.accent;
+		let on = false;
 		if (cloud.state !== "READY") value = cloud.state === "SIGNED_OUT" ? "Sign in" : cloud.state === "ERROR" ? "Error" : "…";
-		else if (!fan) value = it.settings.fan ? "Not found" : "Pick a fan";
+		else if (!fan) value = it.settings.fan ? "Not found" : cycling ? "Press for a fan" : "Pick a fan";
 		else if (!fan.online) value = "Offline";
 		else {
-			const on = isOn(fan);
+			on = isOn(fan);
 			const speed = speedOf(fan);
 			const max = fan.caps.speed?.[1] ?? 9;
 			const r = it.settings.dialRotate;
@@ -347,9 +391,10 @@ export class FanDial extends FanAction {
 				value = `${r === "h" ? "H" : "V"} ${a > 0 ? "+" : ""}${a}°${on ? "" : " · off"}`;
 				indicator = Math.round(((a - lo) / (hi - lo)) * 100);
 			}
-			if (!on) color = "#858E97";
 		}
-		const fb = { title, value, indicator: { value: indicator, bar_fill_c: color } };
+		if (!on) color = THEMES.off.dim;
+		const icon = toDataUrl(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48">${fanGlyph(24, 24, 15, on ? theme.accent : THEMES.off.dim)}</svg>`);
+		const fb = { title, value, icon, indicator: { value: indicator, bar_fill_c: color } };
 		const json = JSON.stringify(fb);
 		if (json === it.lastFeedback) return;
 		it.lastFeedback = json;

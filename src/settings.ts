@@ -34,6 +34,8 @@ export interface ActionSettings {
 	axis: "h" | "v" | "both";
 	// dial
 	dialRotate: "speed" | "h" | "v";
+	dialPush: "power" | "next";
+	dialTouch: "power" | "next";
 }
 
 export const DEFAULTS: ActionSettings = {
@@ -53,6 +55,8 @@ export const DEFAULTS: ActionSettings = {
 	nudge: 10,
 	axis: "h",
 	dialRotate: "speed",
+	dialPush: "power",
+	dialTouch: "next",
 };
 
 const num = (v: unknown, d: number) => (v === "" || v === null || v === undefined || !Number.isFinite(Number(v)) ? d : Number(v));
@@ -78,5 +82,7 @@ export function resolveSettings(raw: JsonObject | undefined): ActionSettings {
 		nudge: Math.max(1, Math.round(num(r.nudge, DEFAULTS.nudge))),
 		axis: pick(r.axis, ["h", "v", "both"], DEFAULTS.axis),
 		dialRotate: pick(r.dialRotate, ["speed", "h", "v"], DEFAULTS.dialRotate),
+		dialPush: pick(r.dialPush, ["power", "next"], DEFAULTS.dialPush),
+		dialTouch: pick(r.dialTouch, ["power", "next"], DEFAULTS.dialTouch),
 	};
 }
